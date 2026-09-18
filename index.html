@@ -1,1 +1,81 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Anesth Pre-op Reports</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="theme-color" content="#0d6efd">
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #f4f7f6; }
+    iframe { width: 100%; height: 100%; border: none; }
+    
+    /* UI แถบแจ้งเตือนให้ติดตั้ง */
+    #installBanner { 
+      display: none; position: fixed; bottom: 0; width: 100%; 
+      background: #0d6efd; color: white; text-align: center; 
+      padding: 15px 10px; z-index: 9999; font-family: sans-serif; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+    .btn-install { 
+      background: white; color: #0d6efd; border: none; padding: 8px 16px; 
+      border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
 
+  <!-- ดึง Web App มาแสดง -->
+  <iframe src="https://script.google.com/macros/s/AKfycbyBm8y1EEGpNEfhL338WhT0U3YLNc-To9UYpPfU_0Hoykx7JfXp47ylH88Yv5X29bKF/exec"></iframe>
+
+  <!-- แถบแนะนำให้ติดตั้ง (จะโชว์ก็ต่อเมื่อยังไม่ได้ติดตั้ง) -->
+  <div id="installBanner">
+    <div id="installText">ติดตั้งแอปนี้ลงมือถือเพื่อการใช้งานที่รวดเร็ว</div>
+    <button id="installBtn" class="btn-install">ติดตั้ง (Install)</button>
+  </div>
+
+  <script>
+    // 1. ลงทะเบียน Service Worker (จำเป็นสำหรับ PWA)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+
+    // 2. Logic การแจ้งเตือนติดตั้ง
+    const installBanner = document.getElementById('installBanner');
+    const installBtn = document.getElementById('installBtn');
+    const installText = document.getElementById('installText');
+    let deferredPrompt;
+
+    // เช็คระบบ iOS (เนื่องจาก iOS ไม่รองรับปุ่ม Install ตรงๆ ต้องสอนให้กด Share)
+    const isIos = () => {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      return /iphone|ipad|ipod/.test(userAgent);
+    }
+    const isInStandaloneMode = () => ('standalone' in window.navigator) && (window.navigator.standalone);
+
+    if (isIos() && !isInStandaloneMode()) {
+      installBanner.style.display = 'block';
+      installText.innerHTML = "<b>สำหรับ iOS:</b><br>กดปุ่ม Share (แชร์) ด้านล่าง<br>แล้วเลือก <b>'เพิ่มไปยังหน้าจอโฮม'</b> (Add to Home Screen)";
+      installBtn.style.display = 'none'; // ซ่อนปุ่ม เพราะ iOS กดติดตั้งจากปุ่มไม่ได้
+    }
+
+    // เช็คระบบ Android / Chrome
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // ป้องกันไม่ให้เบราว์เซอร์โชว์ Popup ปกติ (เราจะใช้ Banner ของเราเอง)
+      deferredPrompt = e;
+      installBanner.style.display = 'block'; // โชว์ Banner ของเรา
+    });
+
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt(); // โชว์ Popup ติดตั้งของระบบ
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          installBanner.style.display = 'none'; // ปิด Banner ถ้าติดตั้งสำเร็จ
+        }
+        deferredPrompt = null;
+      }
+    });
+  </script>
+</body>
+</html>
